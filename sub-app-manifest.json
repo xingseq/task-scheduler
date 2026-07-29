@@ -1,0 +1,22 @@
+{
+  "name": "task-scheduler",
+  "displayName": "定时任务",
+  "description": "定时执行命令 - cron 调度、手动触发、执行历史与实时日志",
+  "version": "0.1.0",
+  "ui": {
+    "enabled": true,
+    "port": 8021,
+    "portEnv": "PORT",
+    "server": "src/server.mjs",
+    "healthPath": "/api/health",
+    "requireBuild": true,
+    "buildCommand": "npm run build",
+    "routes": ["/"]
+  },
+  "cli": {
+    "enabled": false
+  },
+  "dependencies": {
+    "runtime": ["croner"]
+  }
+}
