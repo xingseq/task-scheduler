@@ -15,6 +15,7 @@ const CRON_PRESETS = [
 
 function TaskForm({ task, onSave, onClose }) {
   const isEdit = !!task.id
+  const isDuplicate = !isEdit && task.duplicate === true
   const [form, setForm] = useState({
     label: task.label || '',
     cron: task.cron || '',
@@ -47,7 +48,7 @@ function TaskForm({ task, onSave, onClose }) {
       onClick={onClose}>
       <form onSubmit={handleSubmit} onClick={e => e.stopPropagation()}
         className="bg-gray-800 border border-gray-700 rounded-xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-bold">{isEdit ? '编辑任务' : '新建任务'}</h2>
+        <h2 className="text-lg font-bold">{isEdit ? '编辑任务' : isDuplicate ? '复制任务' : '新建任务'}</h2>
 
         <div>
           <label className="block text-sm text-gray-400 mb-1">任务名称（可选）</label>
@@ -104,6 +105,9 @@ function TaskForm({ task, onSave, onClose }) {
             className="accent-primary-500" />
           保存后立即启用调度
         </label>
+        {isDuplicate && (
+          <p className="-mt-2 text-xs text-gray-500">副本默认停用，确认字段无误后可在列表中启用，避免与原任务重复执行</p>
+        )}
 
         <div className="flex gap-3 pt-2">
           <button type="submit" disabled={saving || !form.command.trim() || !form.cron.trim()}

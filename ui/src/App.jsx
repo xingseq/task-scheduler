@@ -54,6 +54,18 @@ function App() {
     }
   }, [loadTasks, showToast])
 
+  const handleDuplicate = (task) => {
+    setEditing({
+      label: task.label ? `${task.label}（副本）` : '',
+      cron: task.cron,
+      command: task.command,
+      cwd: task.cwd || '',
+      timeoutSec: task.timeoutSec,
+      enabled: false,       // 副本默认停用，避免与原任务重复调度
+      duplicate: true
+    })
+  }
+
   const handleSave = async (form) => {
     const data = form.id
       ? await api(`/tasks/${form.id}`, { method: 'PUT', body: JSON.stringify(form) })
@@ -112,7 +124,7 @@ function App() {
 
       <main className="max-w-4xl mx-auto p-6">
         {page === 'tasks' ? (
-          <TaskList tasks={tasks} api={api} showToast={showToast} onEdit={setEditing} />
+          <TaskList tasks={tasks} api={api} showToast={showToast} onEdit={setEditing} onDuplicate={handleDuplicate} />
         ) : (
           <HistoryPage tasks={tasks} apiBase={API_BASE} />
         )}

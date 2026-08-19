@@ -21,7 +21,7 @@ function StatusBadge({ task }) {
   return <span className="px-2 py-0.5 rounded text-xs bg-green-900/60 text-green-300">调度中</span>
 }
 
-function TaskList({ tasks, api, showToast, onEdit }) {
+function TaskList({ tasks, api, showToast, onEdit, onDuplicate }) {
   const handleToggle = async (task) => {
     const data = await api(`/tasks/${task.id}/${task.enabled ? 'disable' : 'enable'}`, { method: 'POST' })
     if (data) showToast(task.enabled ? '已停用调度' : '已启用调度')
@@ -93,6 +93,10 @@ function TaskList({ tasks, api, showToast, onEdit }) {
                     : 'bg-green-900/50 hover:bg-green-800 text-green-300'
                 }`}>
                 {task.enabled ? '停用' : '启用'}
+              </button>
+              <button onClick={() => onDuplicate(task)}
+                className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 rounded transition">
+                复制
               </button>
               <button onClick={() => onEdit(task)}
                 className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 rounded transition">
