@@ -1,11 +1,32 @@
 /**
- * TaskList.jsx — 任务列表：状态展示 + 启停/立即执行/编辑/删除
+ * TaskList.jsx — 任务列表：按命令分组展示 + 启停/立即执行/编辑/删除
  */
 
 function fmtTime(iso) {
   if (!iso) return '—'
   const d = new Date(iso)
   return d.toLocaleString('zh-CN', { hour12: false })
+}
+
+/** 排序键：下次执行时间；停用/未调度的任务（无 nextRun）排最后 */
+function nextRunMs(task) {
+  return task.nextRun ? new Date(task.nextRun).getTime() : Infinity
+}
+
+/** 按命令分组；组内按下次执行时间正序，组间按各组最早执行时间正序 */
+function groupByCommand(tasks) {
+  const groups = new Map()
+  for (const task of tasks) {
+    if (!groups.has(task.command)) groups.set(task.command, [])
+    groups.get(task.command).push(task)
+  }
+  for (const list of groups.values()) {
+    list.sort((a, b) => nextRunMs(a) - nextRunMs(b) || a.label.localeCompare(b.label))
+  }
+  return [...groups.entries()].sort(([cmdA, listA], [cmdB, listB]) =>
+    // 组内已排好，取首个任务即为最早执行；无调度的组整体排最后
+    nextRunMs(listA[0]) - nextRunMs(listB[0]) || cmdA.localeCompare(cmdB)
+  )
 }
 
 function StatusBadge({ task }) {
@@ -54,61 +75,70 @@ function TaskList({ tasks, api, showToast, onEdit, onDuplicate }) {
   }
 
   return (
-    <div className="space-y-3">
-      {tasks.map(task => (
-        <div key={task.id}
-          className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="font-medium truncate">{task.label}</h3>
-                <StatusBadge task={task} />
-              </div>
-              <code className="block text-xs text-gray-400 bg-gray-900 rounded px-2 py-1 mb-2 overflow-x-auto whitespace-nowrap">
-                {task.command}
-              </code>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                <span>cron: <code className="text-primary-300">{task.cron}</code></span>
-                <span>上次执行: {fmtTime(task.lastRun)}</span>
-                <span>下次执行: {fmtTime(task.nextRun)}</span>
-                {task.cwd && <span>目录: {task.cwd}</span>}
-              </div>
-            </div>
-            <div className="flex gap-1.5 shrink-0">
-              {task.executing ? (
-                <button onClick={() => handleKill(task)}
-                  className="px-3 py-1.5 text-xs bg-red-900/50 hover:bg-red-800 text-red-300 rounded transition">
-                  终止
-                </button>
-              ) : (
-                <button onClick={() => handleRun(task)}
-                  className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 rounded transition">
-                  立即执行
-                </button>
-              )}
-              <button onClick={() => handleToggle(task)}
-                className={`px-3 py-1.5 text-xs rounded transition ${
-                  task.enabled
-                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                    : 'bg-green-900/50 hover:bg-green-800 text-green-300'
-                }`}>
-                {task.enabled ? '停用' : '启用'}
-              </button>
-              <button onClick={() => onDuplicate(task)}
-                className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 rounded transition">
-                复制
-              </button>
-              <button onClick={() => onEdit(task)}
-                className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 rounded transition">
-                编辑
-              </button>
-              <button onClick={() => handleDelete(task)}
-                className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-red-900/60 hover:text-red-300 rounded transition">
-                删除
-              </button>
-            </div>
+    <div className="space-y-6">
+      {groupByCommand(tasks).map(([command, groupTasks]) => (
+        <section key={command}>
+          <div className="flex items-center gap-2 mb-2">
+            <code className="min-w-0 flex-1 text-xs text-primary-300 bg-gray-900 border border-gray-700 rounded px-2 py-1 overflow-x-auto whitespace-nowrap">
+              {command}
+            </code>
+            <span className="text-xs text-gray-500 shrink-0">{groupTasks.length} 个任务</span>
           </div>
-        </div>
+          <div className="space-y-3">
+            {groupTasks.map(task => (
+              <div key={task.id}
+                className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-medium truncate">{task.label}</h3>
+                      <StatusBadge task={task} />
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                      <span>cron: <code className="text-primary-300">{task.cron}</code></span>
+                      <span>上次执行: {fmtTime(task.lastRun)}</span>
+                      <span>下次执行: {fmtTime(task.nextRun)}</span>
+                      {task.cwd && <span>目录: {task.cwd}</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    {task.executing ? (
+                      <button onClick={() => handleKill(task)}
+                        className="px-3 py-1.5 text-xs bg-red-900/50 hover:bg-red-800 text-red-300 rounded transition">
+                        终止
+                      </button>
+                    ) : (
+                      <button onClick={() => handleRun(task)}
+                        className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 rounded transition">
+                        立即执行
+                      </button>
+                    )}
+                    <button onClick={() => handleToggle(task)}
+                      className={`px-3 py-1.5 text-xs rounded transition ${
+                        task.enabled
+                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                          : 'bg-green-900/50 hover:bg-green-800 text-green-300'
+                      }`}>
+                      {task.enabled ? '停用' : '启用'}
+                    </button>
+                    <button onClick={() => onDuplicate(task)}
+                      className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 rounded transition">
+                      复制
+                    </button>
+                    <button onClick={() => onEdit(task)}
+                      className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 rounded transition">
+                      编辑
+                    </button>
+                    <button onClick={() => handleDelete(task)}
+                      className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-red-900/60 hover:text-red-300 rounded transition">
+                      删除
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       ))}
     </div>
   )
